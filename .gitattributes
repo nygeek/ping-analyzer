@@ -1,2 +1,3 @@
 * text=auto
-* ident
+*.py ident
+Makefile ident
