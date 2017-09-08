@@ -21,7 +21,10 @@ DATA = sample.txt
 CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
-	tail -n 100 ${DATA} | python ${CRUNCHER}
+	tail -n 100000 ${DATA} | python ${CRUNCHER}
+
+run: ${FORCE}
+	cat ${DATA} | python ${CRUNCHER}
 
 .%_push:
 	rsync -az --exclude="RCS" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
