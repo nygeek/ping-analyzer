@@ -1,5 +1,5 @@
 #
-# pinger
+# analyze_pings development sandbox
 #
 
 DIRS = "."
