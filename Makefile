@@ -2,10 +2,6 @@
 # pinger
 #
 
-#
-# $Id$
-#
-
 DIRS = "."
 DIRPATH="~/projects/p/pinger"
 
@@ -25,7 +21,7 @@ DATA = sample.txt
 CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
-	tail -n  ${DATA} | python ${CRUNCHER}
+	tail -n 100 ${DATA} | python ${CRUNCHER}
 
 .%_push:
 	rsync -az --exclude="RCS" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
