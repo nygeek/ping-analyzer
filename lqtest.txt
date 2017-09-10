@@ -1,0 +1,10 @@
+lq one
+lq two
+lq three
+lq four
+lq five
+lq six
+lq seven
+lq eight
+lq nine
+lq ten
