@@ -34,13 +34,24 @@ run: ${FORCE}
 lqtest: ${FORCE}
 	python LineQueue.py
 
+# Quality management
+
 pylint: ${SOURCE}
+
+# GIT operations
+
+diff: ${FORCE}
+	git diff
 
 commit: ${FILES}
 	git commit ${FILES}
 
 log: ${FORCE}
 	git log --pretty=oneline
+
+# Distribution to other hosts
+
+push: ${PUSH_FILES}
 
 .%_push:
 	rsync -az --exclude="RCS" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
