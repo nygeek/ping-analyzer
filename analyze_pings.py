@@ -1,6 +1,11 @@
-""" analyze_pings.py """
+""" analyze_pings.py
 
-import fileinput
+Take the log of ping data output from running ping for a long
+time and summarize and analyze the various errors.
+
+"""
+
+import LineQueue
 from datetime import datetime
 import json
 import re

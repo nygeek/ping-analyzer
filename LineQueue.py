@@ -27,36 +27,21 @@ class LineQueue(object):
         else:
             self.file_descriptor = open(filename, 'r')
         self.line_queue = []
-        # I can not use a sentry to indicate EOF, since there is
-        # no way I can prevent that string from appearing in an
-        # arbitrary file somewhere.  So I use queue_len.  It is -1 if
-        # I have not seen EOF yet.  After I have seen EOF, I have to
-        # keep track of the number of lines to EOF.
-        self.queue_len = -1
         self.fill_queue()
 
     def get_line(self):
-        """Get a line from the lq."""
-        if self.queue_len < 0:
+        """Get a line from self.line_queue."""
+        result = ""
+        if self.line_queue:
             result = self.line_queue.pop(0)
-            self.queue_len = len(self.line_queue)
             self.fill_queue()
-        elif self.queue_len > 0:
-            result = self.line_queue.pop(0)
-            self.queue_len = len(self.line_queue)
-            # Can not call fill_queue() here, since we have seen EOF
         return result
 
     def fill_queue(self):
         """Fill the queue as needed."""
         while len(self.line_queue) < self.max_depth:
             line = self.file_descriptor.readline()
-            if not line:
-                # we are at EOF ... note how many lines we have
-                # to go
-                self.queue_len = len(self.line_queue)
-            else:
-                self.line_queue.append(line.strip())
+            self.line_queue.append(line)
 
     def push_back(self, line):
         """Push a line back on the line_queue."""
@@ -90,7 +75,10 @@ def main():
     print str(line_queue)
 
     # now read to the end of the file
-
+    line = line_queue.get_line()
+    while line:
+        print "line: '" + str(line.strip()) + "'"
+        line = line_queue.get_line()
 
 if __name__ == '__main__':
     main()
