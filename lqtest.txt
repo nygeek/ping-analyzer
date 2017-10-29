@@ -8,3 +8,7 @@ lq seven
 lq eight
 lq nine
 lq ten
+
+lq eleven
+lq twelve
+lq thirteen

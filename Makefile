@@ -34,6 +34,9 @@ lqtest: ${FORCE}
 commit: ${FILES}
 	git commit ${FILES}
 
+log: ${FORCE}
+	git log --pretty=oneline
+
 .%_push:
 	rsync -az --exclude="RCS" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
 	touch $@

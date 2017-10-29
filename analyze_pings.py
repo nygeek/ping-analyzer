@@ -1,6 +1,4 @@
-###
-### analyze_pings.py
-###
+""" analyze_pings.py """
 
 import fileinput
 from datetime import datetime
@@ -8,11 +6,11 @@ import json
 import re
 
 def handle_gateway_failure(linenumber):
-    """ when a line starts with '92 bytes from ' we have """
-    """ expect three more lines: """
-    """ 'Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst' """
-    """ (a bunch of numbers and data) """
-    """ (a blank line) """
+    """ when a line starts with '92 bytes from ' we have
+    to expect three more lines:
+       'Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst'
+       (a bunch of numbers and data)
+       (a blank line) """
     first = "Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst"
     # need to flush three lines here ...
 
@@ -20,13 +18,13 @@ def classify(linenumber, line):
     """ Given a line from the pinger output, classify it. """
 
     if line == "ping: sendto: Network is down":
-        return("Down")
+        return "Down"
     elif line == "ping: sendto: No route to host":
-        return("Route")
+        return "Route"
     elif line.startswith("Request timeout for icmp_seq "):
-        return("Timeout")
+        return "Timeout"
     elif line.startswith("64 bytes from "):
-        return("Normal")
+        return "Normal"
     elif line.startswith("92 bytes from "):
         # this precedes three more lines for the report
         handle_gateway_failure(linenumber)
@@ -34,7 +32,7 @@ def classify(linenumber, line):
         # Is there anything other than '64 bytes...'?
         print "Unexpected: '", line, "'"
         print "linenumber: ", linenumber
-        return("Unexpected")
+        return "Unexpected"
 
 # Because one of the error modes produces a four-line sequence
 # I need an input reader that lets me look ahead in the input
@@ -44,8 +42,8 @@ def main():
     """Main body."""
 
     # Initialize the counters
-    counters = {"Down": 0, 
-                "Route": 0, 
+    counters = {"Down": 0,
+                "Route": 0,
                 "Timeout": 0,
                 "Normal": 0,
                 "Unexpected": 0}
