@@ -37,16 +37,17 @@ lqtest: ${FORCE}
 # Quality management
 
 pylint: ${SOURCE}
+	pylint ${SOURCE}
 
 # GIT operations
 
-diff: ${FORCE}
+diff: .gitattributes
 	git diff
 
-commit: ${FILES}
+commit: .gitattributes
 	git commit ${FILES}
 
-log: ${FORCE}
+log: .gitattributes
 	git log --pretty=oneline
 
 # Distribution to other hosts
