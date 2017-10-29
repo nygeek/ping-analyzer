@@ -11,9 +11,12 @@ PUSH_FILES = $(HOSTS:%=.%_push)
 help: ${FORCE}
 	cat Makefile
 
-FILES = \
+SOURCE = \
 	analyze_pings.py \
-	LineQueue.py \
+	LineQueue.py
+
+FILES = \
+	${SOURCE} \
 	lqtest.txt \
 	Makefile \
 	sample.txt
@@ -30,6 +33,8 @@ run: ${FORCE}
 
 lqtest: ${FORCE}
 	python LineQueue.py
+
+pylint: ${SOURCE}
 
 commit: ${FILES}
 	git commit ${FILES}
