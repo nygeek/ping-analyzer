@@ -14,7 +14,8 @@ import sys
 #
 # Roadmap
 #
-# 2017-09-10 [ ] Make sure that we do the right thing on EOF
+# 2017-09-10 [X] Make sure that we do the right thing on EOF
+#                Done 2017-10-29
 #
 
 
@@ -53,6 +54,7 @@ class LineQueue(object):
 
 def main():
     """Main routine - just for testing."""
+
     print "begin test..."
     line_queue = LineQueue(4, "./lqtest.txt")
     print "line_queue before:"

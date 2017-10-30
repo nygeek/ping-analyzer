@@ -64,7 +64,7 @@ def main():
                 "Normal": 0,
                 "Unexpected": 0}
 
-    line_queue = LineQueue(4, "./sample.txt")
+    line_queue = LineQueue(4)
     linecount = 0
     
     line = line_queue.get_line()
@@ -90,6 +90,17 @@ def main():
     print "Route: ", counters["Route"]
     print "Timeout: ", counters["Timeout"]
     print "Unexpected: ", counters["Unexpected"]
+
+    checksum = linecount
+    checksum -= counters["Down"]
+    checksum -= counters["GWFailure"]
+    checksum -= counters["Normal"]
+    checksum -= counters["Prefix"]
+    checksum -= counters["Route"]
+    checksum -= counters["Timeout"]
+    checksum -= counters["Unexpected"]
+
+    print "checksum: " + str(checksum)
 
 if __name__ == '__main__':
     main()
