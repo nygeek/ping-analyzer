@@ -24,9 +24,22 @@ def handle_gateway_failure(line_queue, firstline, linenumber):
     thirdline = line_queue.get_line()
     fourthline = line_queue.get_line()
 
+def parse_normal_return(line, linenumber):
+    """ Given a normal string, return a tuple containing IP address,
+        Sequence number, and RTT.
+    """
+    # print "parse_normal_return(): " + line.strip()
+    (front, back) = line.split(":")
+    (junk, junk, junk, ip_address) = front.split(" ")
+    (junk, seq, ttl, time, ms) = back.split(" ")
+    (junk, t) = time.split("=")
+    (icmp_seq, numb) = seq.split("=")
+    return (ip_address, numb, t)
+
 def classify(line_queue, line, linenumber):
     """ Given a line from the pinger output, classify it. """
 
+    # print "classify(): " + line
     if line == "ping: sendto: Network is down":
         return "Down"
     elif line.startswith("#"):
@@ -48,10 +61,6 @@ def classify(line_queue, line, linenumber):
         print "Unexpected: '", line, "'"
         return "Unexpected"
 
-# Because one of the error modes produces a four-line sequence
-# I need an input reader that lets me look ahead in the input
-# stream:
-
 def main():
     """Main body."""
 
@@ -70,12 +79,16 @@ def main():
     line = line_queue.get_line()
     while line:
         linecount += 1
-        kind = classify(line_queue, line.strip(), linecount)
+        # print "linecount: '" + str(linecount)
         # print "line: '" + line.strip() + "'"
-        # print "kind: " + kind
+        kind = classify(line_queue, line.strip(), linecount)
+        # print "   kind: " + kind
         if kind:
-            line = line_queue.get_line()
             counters[kind] += 1
+            if kind == "Normal":
+                result = parse_normal_return(line.strip(), linecount)
+                print str(result)
+            line = line_queue.get_line()
         else:
             # Failed to classify:
             print "linecount: " + str(linecount)
