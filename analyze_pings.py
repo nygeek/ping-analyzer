@@ -7,6 +7,7 @@ time and summarize and analyze the various errors.
 
 from LineQueue import LineQueue
 from datetime import datetime
+from math import sqrt
 import json
 import re
 
@@ -65,6 +66,13 @@ def main():
     """Main body."""
 
     # Initialize the counters
+    classifications = ["Down",
+                       "Prefix",
+                       "GWFailure",
+                       "Route",
+                       "Timeout",
+                       "Normal",
+                       "Unexpected",]
     counters = {"Down": 0,
                 "Prefix": 0,
                 "GWFailure": 0,
@@ -77,6 +85,16 @@ def main():
     linecount = 0
     
     line = line_queue.get_line()
+    recent_num = 0
+    # variables used for online mean and standard deviation
+    previous_rtt = -1
+    mean_rtt = -1
+    previous_mean_rtt = 0
+    sigma_squared = -1
+    previous_sigma_squared = 0
+    normal_ping_count = 0
+    sequence_number = -1
+    sequence_offset = 0
     while line:
         linecount += 1
         # print "linecount: '" + str(linecount)
@@ -87,8 +105,47 @@ def main():
             counters[kind] += 1
             if kind == "Normal":
                 result = parse_normal_return(line.strip(), linecount)
-                print str(result)
+                # result is a tuple: (ip_address, sequence_number, rtt)
+                # ping sends pings once per second, so sequence_number
+                # is rough count of seconds.
+                (ip, num, rtt) = result
+                zrtt = float(rtt)
+                inum = int(num)
+                if sequence_number < 0:
+                    sequence_number = inum + sequence_offset
+                    # when we first set sequence_number the offset
+                    # should be zero, but there's no harm in adding
+                else:
+                    sequence_number = inum + sequence_offset
+                # do this after calculating sequence_number so that
+                # in the 1/65536 chance that we start at sequence==0
+                # we do not incorrectly offset by one cycle.
+                if inum == 0:
+                    # The sequence number only goes to 65535, so we
+                    # will keep track of the rolls
+                    sequence_offset += 65536
+                normal_ping_count += 1
+# We use the online algorithm documented in Wikipedia article:
+# https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+                if previous_rtt > 0.0:
+                    mean_rtt += \
+                        (zrtt - previous_mean_rtt) /\
+                        float(normal_ping_count)
+                    previous_mean_rtt = mean_rtt
+                previous_rtt = zrtt
+                # This works because the first time through 
+                # previous_sigma_squared is zero
+                sigma_squared = \
+                    ( (normal_ping_count - 1) * previous_sigma_squared + \
+                      (zrtt - previous_mean_rtt) * \
+                      (zrtt - mean_rtt)
+                    ) / normal_ping_count
+                previous_sigma_squared = sigma_squared
             line = line_queue.get_line()
+        elif kind in classifications:
+            # not Normal, so a problem
+            print "kind: " + kind
+            print "Glitch.  sequence_number: " + str(recent_num)
         else:
             # Failed to classify:
             print "linecount: " + str(linecount)
@@ -103,6 +160,13 @@ def main():
     print "Route: ", counters["Route"]
     print "Timeout: ", counters["Timeout"]
     print "Unexpected: ", counters["Unexpected"]
+
+    print "sequence_number: " + str(sequence_number)
+    print "sequence_offset: " + str(sequence_offset)
+    print "normal_ping_count: " + str(normal_ping_count)
+    print "Average rtt: " + str(mean_rtt)
+    print "Variance: " + str(sigma_squared)
+    print "Standard Deviation: " + str(sqrt(sigma_squared))
 
     checksum = linecount
     checksum -= counters["Down"]

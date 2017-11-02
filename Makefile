@@ -26,7 +26,7 @@ DATA = sample.txt
 CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
-	head -n 10000 ${DATA} | python ${CRUNCHER}
+	head -n 100000 ${DATA} | python ${CRUNCHER}
 
 run: ${FORCE}
 	cat ${DATA} | python ${CRUNCHER}
