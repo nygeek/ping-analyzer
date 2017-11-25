@@ -9,7 +9,15 @@ from LineQueue import LineQueue
 from datetime import datetime
 from math import sqrt
 import json
+import psutil
 import re
+
+#
+# Roadmap
+# 
+# 2017-11-12 [ ] Expand handling to recognize the Linux ping
+#                syntax.
+#
 
 def handle_gateway_failure(line_queue, firstline, linenumber):
     """ when a line starts with '92 bytes from ' we have
@@ -25,12 +33,25 @@ def handle_gateway_failure(line_queue, firstline, linenumber):
     thirdline = line_queue.get_line()
     fourthline = line_queue.get_line()
 
+def handle_down_network(line_queue, firstline, linenumber):
+    """ When we encounter a 'Network is down' message we can
+        expect a 'Request timeout' message to follow immediately."""
+    pattern = "Request timeout for icmp_seq "
+    # need to flush one more line here ...
+    secondline = line_queue.get_line()
+    if not secondline.startswith(pattern):
+        print "handle_down_network(): linenumber: " + str(linenumber)
+
 def parse_normal_return(line, linenumber):
     """ Given a normal string, return a tuple containing IP address,
         Sequence number, and RTT.
     """
     # print "parse_normal_return(): " + line.strip()
     (front, back) = line.split(":")
+    # This gets tricky.  The IP address might be there
+    # or it might be in parens at the end of the line
+    # e.g. 64 bytes from panix2.panix.com (166.84.1.2):
+    # e.g. 64 bytes from 166.84.1.2: ...
     (junk, junk, junk, ip_address) = front.split(" ")
     (junk, seq, ttl, time, ms) = back.split(" ")
     (junk, t) = time.split("=")
@@ -42,9 +63,10 @@ def classify(line_queue, line, linenumber):
 
     # print "classify(): " + line
     if line == "ping: sendto: Network is down":
+        handle_down_network(line_queue, line, linenumber)
         return "Down"
     elif line.startswith("#"):
-        return "Prefix"
+        return "Comment"
     elif line == "ping: sendto: No route to host":
         return "Route"
     elif line.startswith("Request timeout for icmp_seq "):
@@ -65,20 +87,25 @@ def classify(line_queue, line, linenumber):
 def main():
     """Main body."""
 
+    # capture timing information
+    cputime_0 = psutil.cpu_times()
+
     # Initialize the counters
     classifications = ["Down",
-                       "Prefix",
+                       "Comment",
                        "GWFailure",
                        "Route",
                        "Timeout",
                        "Normal",
+                       "NegativeRTT",
                        "Unexpected",]
     counters = {"Down": 0,
-                "Prefix": 0,
+                "Comment": 0,
                 "GWFailure": 0,
                 "Route": 0,
                 "Timeout": 0,
                 "Normal": 0,
+                "NegativeRTT": 0,
                 "Unexpected": 0}
 
     line_queue = LineQueue(4)
@@ -93,6 +120,7 @@ def main():
     sigma_squared = -1
     previous_sigma_squared = 0
     normal_ping_count = 0
+    negative_ping_count = 0
     sequence_number = -1
     sequence_offset = 0
     while line:
@@ -124,23 +152,30 @@ def main():
                     # The sequence number only goes to 65535, so we
                     # will keep track of the rolls
                     sequence_offset += 65536
-                normal_ping_count += 1
+                # Ick - need to redesign this
+                if zrtt < 0:
+                    # Oops - this is NOT normal after all
+                    negative_ping_count += 1
+                    counters["Normal"] -= 1
+                    counters["NegativeRTT"] += 1
+                else:
+                    normal_ping_count += 1
 # We use the online algorithm documented in Wikipedia article:
 # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-                if previous_rtt > 0.0:
-                    mean_rtt += \
-                        (zrtt - previous_mean_rtt) /\
-                        float(normal_ping_count)
-                    previous_mean_rtt = mean_rtt
-                previous_rtt = zrtt
-                # This works because the first time through 
-                # previous_sigma_squared is zero
-                sigma_squared = \
-                    ( (normal_ping_count - 1) * previous_sigma_squared + \
-                      (zrtt - previous_mean_rtt) * \
-                      (zrtt - mean_rtt)
-                    ) / normal_ping_count
-                previous_sigma_squared = sigma_squared
+                    if previous_rtt > 0.0:
+                        mean_rtt += \
+                            (zrtt - previous_mean_rtt) /\
+                            float(normal_ping_count)
+                        previous_mean_rtt = mean_rtt
+                    previous_rtt = zrtt
+                    # This works because the first time through 
+                    # previous_sigma_squared is zero
+                    sigma_squared = \
+                        ( (normal_ping_count - 1) * previous_sigma_squared + \
+                          (zrtt - previous_mean_rtt) * \
+                          (zrtt - mean_rtt)
+                        ) / normal_ping_count
+                    previous_sigma_squared = sigma_squared
             line = line_queue.get_line()
         elif kind in classifications:
             # not Normal, so a problem
@@ -156,7 +191,8 @@ def main():
     print "Down: ", counters["Down"]
     print "GWfailure: ", counters["GWFailure"]
     print "Normal: ", counters["Normal"]
-    print "Prefix: ", counters["Prefix"]
+    print "NegativeRTT: ", counters["NegativeRTT"]
+    print "Comment: ", counters["Comment"]
     print "Route: ", counters["Route"]
     print "Timeout: ", counters["Timeout"]
     print "Unexpected: ", counters["Unexpected"]
@@ -172,12 +208,22 @@ def main():
     checksum -= counters["Down"]
     checksum -= counters["GWFailure"]
     checksum -= counters["Normal"]
-    checksum -= counters["Prefix"]
+    checksum -= counters["NegativeRTT"]
+    checksum -= counters["Comment"]
     checksum -= counters["Route"]
     checksum -= counters["Timeout"]
     checksum -= counters["Unexpected"]
 
     print "checksum: " + str(checksum)
+
+    cputime_1 = psutil.cpu_times()
+    print
+    # index 0 is user
+    # index 1 is nice
+    # index 2 is system
+    # index 3 is idle
+    print "User time: " + str(cputime_1[0] - cputime_0[0])
+    print "System time: " + str(cputime_1[2] - cputime_0[2])
 
 if __name__ == '__main__':
     main()

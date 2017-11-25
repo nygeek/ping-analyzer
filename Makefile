@@ -21,6 +21,9 @@ FILES = \
 	Makefile \
 	sample.txt
 
+stuff.tar: ${FORCE}
+	tar -cvf stuff.tar ${FILES}
+
 DATA = sample.txt
 
 CRUNCHER = analyze_pings.py

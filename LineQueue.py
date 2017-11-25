@@ -3,7 +3,7 @@
 Written by Marc Donner
 Started 2017-09-10
 
-My ping stream analyzier (analyze_pings.py) requires the ability
+My ping stream analyzer (analyze_pings.py) requires the ability
 to look three lines ahead in order to handle certain ill-formed
 error reports.
 """
