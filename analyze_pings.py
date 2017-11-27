@@ -21,10 +21,12 @@ import re
 
 def handle_gateway_failure(line_queue, firstline, linenumber):
     """ when a line starts with '92 bytes from ' we have
-    to expect three more lines:
+    to expect four more lines:
        'Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst'
        (a bunch of numbers and data)
-       (a blank line) """
+       (a blank line)
+       'Request timeout for icmp_seq '
+    """
     pattern = "Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst"
     # need to flush three lines here ...
     secondline = line_queue.get_line()
@@ -32,15 +34,20 @@ def handle_gateway_failure(line_queue, firstline, linenumber):
         print "handle_gateway_failure(): linenumber: " + str(linenumber)
     thirdline = line_queue.get_line()
     fourthline = line_queue.get_line()
+    fifthline = line_queue.get_line()
+    (junk, sequence_number) = fifthline.split("icmp_seq ")
+    return int(sequence_number)
 
-def handle_down_network(line_queue, firstline, linenumber):
-    """ When we encounter a 'Network is down' message we can
+def handle_expected_timeout(line_queue, firstline, linenumber):
+    """When we encounter a various messages we can
         expect a 'Request timeout' message to follow immediately."""
     pattern = "Request timeout for icmp_seq "
     # need to flush one more line here ...
     secondline = line_queue.get_line()
     if not secondline.startswith(pattern):
         print "handle_down_network(): linenumber: " + str(linenumber)
+    (junk, sequence_number) = secondline.split("icmp_seq ")
+    return int(sequence_number)
 
 def parse_normal_return(line, linenumber):
     """ Given a normal string, return a tuple containing IP address,
@@ -63,26 +70,35 @@ def classify(line_queue, line, linenumber):
 
     # print "classify(): " + line
     if line == "ping: sendto: Network is down":
-        handle_down_network(line_queue, line, linenumber)
-        return "Down"
+        """Get sequence number from subsequent line."""
+        seq_num = handle_expected_timeout(line_queue, line, linenumber)
+        return ("Down", seq_num)
     elif line.startswith("#"):
-        return "Comment"
+        """No sequence number."""
+        return ("Comment", 0)
     elif line == "ping: sendto: No route to host":
-        return "Route"
+        """Get sequence number from subsequent timeout line."""
+        seq_num = handle_expected_timeout(line_queue, line, linenumber)
+        return ("Route", int(seq_num))
     elif line.startswith("Request timeout for icmp_seq "):
-        return "Timeout"
+        (junk, sequence_number) = line.split("icmp_seq ")
+        return ("Timeout", int(sequence_number))
     elif line.startswith("64 bytes from "):
-        return "Normal"
+        # might be negative RTT, so parse the line first
+        (junk, seq_num, rtt) = parse_normal_return(line.strip(), linenumber)
+        if float(rtt) < 0:
+            return ("NegativeRTT", int(seq_num))
+        return ("Normal", int(seq_num))
     elif line.startswith("92 bytes from "):
         # this precedes three more lines for the report
         # first push this back on the queue
-        handle_gateway_failure(line_queue, line, linenumber)
-        return "GWFailure"
+        seq_num = handle_gateway_failure(line_queue, line, linenumber)
+        return ("GWFailure", int(seq_num))
     else:
         # Is there anything other than '64 bytes...'?
         print "linenumber: ", str(linenumber)
         print "Unexpected: '", line, "'"
-        return "Unexpected"
+        return ("Unexpected", -1)
 
 def main():
     """Main body."""
@@ -98,7 +114,14 @@ def main():
                        "Timeout",
                        "Normal",
                        "NegativeRTT",
-                       "Unexpected",]
+                       "Unexpected"]
+    down_classifications = [
+                       "Down",
+                       "GWFailure",
+                       "Route",
+                       "Timeout",
+                       "NegativeRTT"
+                       ]
     counters = {"Down": 0,
                 "Comment": 0,
                 "GWFailure": 0,
@@ -113,6 +136,7 @@ def main():
     
     line = line_queue.get_line()
     recent_num = 0
+
     # variables used for online mean and standard deviation
     previous_rtt = -1
     mean_rtt = -1
@@ -120,72 +144,105 @@ def main():
     sigma_squared = -1
     previous_sigma_squared = 0
     normal_ping_count = 0
-    negative_ping_count = 0
+
     sequence_number = -1
     sequence_offset = 0
+
+    # duration and state variables
+    network_state = "None"
+    up_start = -1
+    up_end = -1
+    down_start = -1
+    down_end = -1
+
     while line:
         linecount += 1
         # print "linecount: '" + str(linecount)
         # print "line: '" + line.strip() + "'"
-        kind = classify(line_queue, line.strip(), linecount)
+        (kind, seq_num) = classify(line_queue, line.strip(), linecount)
         # print "   kind: " + kind
         if kind:
             counters[kind] += 1
             if kind == "Normal":
-                result = parse_normal_return(line.strip(), linecount)
+                (ip, num, rtt) = \
+                        parse_normal_return(line.strip(), linecount)
                 # result is a tuple: (ip_address, sequence_number, rtt)
                 # ping sends pings once per second, so sequence_number
                 # is rough count of seconds.
-                (ip, num, rtt) = result
                 zrtt = float(rtt)
                 inum = int(num)
-                if sequence_number < 0:
-                    sequence_number = inum + sequence_offset
-                    # when we first set sequence_number the offset
-                    # should be zero, but there's no harm in adding
-                else:
-                    sequence_number = inum + sequence_offset
-                # do this after calculating sequence_number so that
-                # in the 1/65536 chance that we start at sequence==0
-                # we do not incorrectly offset by one cycle.
-                if inum == 0:
+                sequence_number = seq_num + sequence_offset
+
+                if inum == 0 and network_state != "None":
                     # The sequence number only goes to 65535, so we
                     # will keep track of the rolls
                     sequence_offset += 65536
-                # Ick - need to redesign this
-                if zrtt < 0:
-                    # Oops - this is NOT normal after all
-                    negative_ping_count += 1
-                    counters["Normal"] -= 1
-                    counters["NegativeRTT"] += 1
+
+                # Handle network state stuff
+                if network_state == "None":
+                    up_start = sequence_number
+                    up_end = sequence_number
+                    # print "Network state initialization: Up"
+                    # print "   sequence_number: " + str(sequence_number)
+                elif network_state == "Down":
+                    down_end = sequence_number
+                    up_start = sequence_number
+                    up_end = sequence_number
+                    #
+                    print "Down: " + str(down_start) +\
+                            " - " + str(down_end) + \
+                            "[ " + str(down_end - down_start - 1) + " ]"
+                    # print "linecount: " + str(linecount)
                 else:
-                    normal_ping_count += 1
+                    up_end = sequence_number
+                network_state = "Up"
+
 # We use the online algorithm documented in Wikipedia article:
 # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-                    if previous_rtt > 0.0:
-                        mean_rtt += \
-                            (zrtt - previous_mean_rtt) /\
-                            float(normal_ping_count)
-                        previous_mean_rtt = mean_rtt
-                    previous_rtt = zrtt
-                    # This works because the first time through 
-                    # previous_sigma_squared is zero
-                    sigma_squared = \
-                        ( (normal_ping_count - 1) * previous_sigma_squared + \
-                          (zrtt - previous_mean_rtt) * \
-                          (zrtt - mean_rtt)
-                        ) / normal_ping_count
-                    previous_sigma_squared = sigma_squared
-            line = line_queue.get_line()
-        elif kind in classifications:
-            # not Normal, so a problem
-            print "kind: " + kind
-            print "Glitch.  sequence_number: " + str(recent_num)
-        else:
-            # Failed to classify:
-            print "linecount: " + str(linecount)
-            print "line: '" + line.strip() + "'"
-            counters["Unexpected"] += 1
+                normal_ping_count += 1
+                if previous_rtt > 0.0:
+                    mean_rtt += \
+                        (zrtt - previous_mean_rtt) /\
+                        float(normal_ping_count)
+                    previous_mean_rtt = mean_rtt
+                previous_rtt = zrtt
+                # This works because the first time through 
+                # previous_sigma_squared is zero
+                sigma_squared = \
+                    ( (normal_ping_count - 1) * previous_sigma_squared + \
+                      (zrtt - previous_mean_rtt) * \
+                      (zrtt - mean_rtt)
+                    ) / normal_ping_count
+                previous_sigma_squared = sigma_squared
+            elif kind in down_classifications:
+                # Handle network state stuff
+                if network_state == "None":
+                    down_start = sequence_number
+                    down_end = sequence_number
+                    # print "Network state initialization: Down"
+                    # print "   sequence_number: " + str(sequence_number)
+                elif network_state == "Up":
+                    up_end = sequence_number
+                    down_start = sequence_number
+                    down_end = sequence_number
+                    #
+                    print "Up:   " + str(up_start) +\
+                            " - " + str(up_end) + \
+                            " [ " + str(up_end - up_start - 1) + " ]"
+                else:
+                    down_end = sequence_number
+                network_state = "Down"
+                # print "kind: " + kind
+            elif kind == "Comment":
+                pass
+            else:
+                # Failed to classify:
+                print "Failed to classify:"
+                print "   kind: " + kind
+                print "   linecount: " + str(linecount)
+                print "   line: '" + line.strip() + "'"
+                counters["Unexpected"] += 1
+        line = line_queue.get_line()
 
     print "linecount", linecount
     print "Down: ", counters["Down"]
