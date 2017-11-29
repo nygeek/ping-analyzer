@@ -8,6 +8,7 @@ to look three lines ahead in order to handle certain ill-formed
 error reports.
 """
 
+import datetime as datetime
 import json
 import sys
 
@@ -23,12 +24,22 @@ class LineQueue(object):
     """LineQueue - buffer for a file descriptor that supports pushback."""
     def __init__(self, maxDepth=4, filename="stdin"):
         self.max_depth = maxDepth
+        self.filename = filename
+        self.timestamp = datetime.datetime.isoformat(\
+                datetime.datetime.today())
+        self.version = "1.0"
         if filename == 'stdin':
             self.file_descriptor = sys.stdin
         else:
             self.file_descriptor = open(filename, 'r')
         self.line_queue = []
         self.fill_queue()
+
+    def signature(self):
+        result = "# LineQueue version 1.0\n"
+        result += "# self.filename: " + self.filename + "\n"
+        result += "# self.timestamp: " + self.timestamp + "\n"
+        return result
 
     def get_line(self):
         """Get a line from self.line_queue."""
@@ -57,6 +68,9 @@ def main():
 
     print "begin test..."
     line_queue = LineQueue(4, "./lqtest.txt")
+
+    print line_queue.signature()
+
     print "line_queue before:"
     print str(line_queue)
 

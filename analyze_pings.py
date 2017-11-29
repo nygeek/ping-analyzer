@@ -6,7 +6,7 @@ time and summarize and analyze the various errors.
 """
 
 from LineQueue import LineQueue
-from datetime import datetime
+import datetime as datetime
 from math import sqrt
 import json
 import psutil
@@ -106,6 +106,17 @@ def main():
     # capture timing information
     cputime_0 = psutil.cpu_times()
 
+    # Self-identification for the run
+    # This gives us YYYY-MM-DDTHH:MM:SS+HH:MM
+    timestamp = datetime.datetime.isoformat(\
+            datetime.datetime.today())
+    print "# timestamp: " + timestamp
+    print "# program: " + "analyze_pings.py"
+
+    line_queue = LineQueue(4)
+    # LineQueue returns a comment-structured self identification
+    print line_queue.signature()
+
     # Initialize the counters
     classifications = ["Down",
                        "Comment",
@@ -131,7 +142,6 @@ def main():
                 "NegativeRTT": 0,
                 "Unexpected": 0}
 
-    line_queue = LineQueue(4)
     linecount = 0
     
     line = line_queue.get_line()
