@@ -29,10 +29,11 @@ DATA = sample.txt
 CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
-	head -n 100000 ${DATA} | python ${CRUNCHER}
+	head -100000 ${DATA} > ${HOME}/tmp/test.txt
+	python ${CRUNCHER} -f ${HOME}/tmp/test.txt
 
 run: ${FORCE}
-	cat ${DATA} | python ${CRUNCHER}
+	python ${CRUNCHER} -f ${DATA}
 
 lqtest: ${FORCE}
 	python LineQueue.py

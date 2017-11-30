@@ -36,9 +36,9 @@ class LineQueue(object):
         self.fill_queue()
 
     def signature(self):
-        result = "# LineQueue version 1.0\n"
-        result += "# self.filename: " + self.filename + "\n"
-        result += "# self.timestamp: " + self.timestamp + "\n"
+        result = "# LineQueue.py version 1.0\n"
+        result += "# LineQueue.py self.filename: " + self.filename + "\n"
+        result += "# LineQueue.py self.timestamp: " + self.timestamp + "\n"
         return result
 
     def get_line(self):

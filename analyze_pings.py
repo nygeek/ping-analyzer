@@ -6,9 +6,10 @@ time and summarize and analyze the various errors.
 """
 
 from LineQueue import LineQueue
+import argparse
 import datetime as datetime
-from math import sqrt
 import json
+from math import sqrt
 import psutil
 import re
 
@@ -17,6 +18,8 @@ import re
 # 
 # 2017-11-12 [ ] Expand handling to recognize the Linux ping
 #                syntax.
+# 2017-11-29 [ ] Add signatures to the output for provenance tracking.
+# 2017-11-29 [ ] Add command line flag handling to __main__() ...
 #
 
 def handle_gateway_failure(line_queue, firstline, linenumber):
@@ -110,10 +113,20 @@ def main():
     # This gives us YYYY-MM-DDTHH:MM:SS+HH:MM
     timestamp = datetime.datetime.isoformat(\
             datetime.datetime.today())
-    print "# timestamp: " + timestamp
-    print "# program: " + "analyze_pings.py"
+    print "# analyze_pings.py - version 1.0"
+    print "# analyze_pings.py: timestamp: " + timestamp
 
-    line_queue = LineQueue(4)
+    parser = argparse.ArgumentParser(description='Analyze a ping log')
+    parser.add_argument('-f', nargs='?',\
+            default='stdin', help="input file name")
+    parser.add_argument('-D', type=int, nargs='?',\
+            default=0, help="Debug flag (int: default to 0)")
+    args = parser.parse_args()
+    input_file_name = args.f
+
+    print "# analyze_pings.py: input_file_name: " + input_file_name
+
+    line_queue = LineQueue(4, input_file_name)
     # LineQueue returns a comment-structured self identification
     print line_queue.signature()
 
