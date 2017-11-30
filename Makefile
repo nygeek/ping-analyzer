@@ -5,6 +5,8 @@
 DIRS = "."
 DIRPATH="~/projects/p/pinger"
 
+GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always --tags)
+
 HOSTS = waffle pancake
 PUSH_FILES = $(HOSTS:%=.%_push)
 
@@ -30,10 +32,10 @@ CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
 	head -100000 ${DATA} > ${HOME}/tmp/test.txt
-	python ${CRUNCHER} -f ${HOME}/tmp/test.txt
+	python ${CRUNCHER} -v ${GIT_VERSION} -f ${HOME}/tmp/test.txt
 
 run: ${FORCE}
-	python ${CRUNCHER} -f ${DATA}
+	python ${CRUNCHER} -v ${GIT_VERSION} -f ${DATA}
 
 lqtest: ${FORCE}
 	python LineQueue.py

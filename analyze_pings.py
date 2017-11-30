@@ -113,17 +113,21 @@ def main():
     # This gives us YYYY-MM-DDTHH:MM:SS+HH:MM
     timestamp = datetime.datetime.isoformat(\
             datetime.datetime.today())
-    print "# analyze_pings.py - version 1.0"
+    print "# analyze_pings.py"
     print "# analyze_pings.py: timestamp: " + timestamp
 
     parser = argparse.ArgumentParser(description='Analyze a ping log')
     parser.add_argument('-f', nargs='?',\
             default='stdin', help="input file name")
+    parser.add_argument('-v', nargs='?', default='command line',\
+            help="git information about build state")
     parser.add_argument('-D', type=int, nargs='?',\
             default=0, help="Debug flag (int: default to 0)")
     args = parser.parse_args()
     input_file_name = args.f
+    build_version = args.v
 
+    print "# analyze_pings.py: build version:" + build_version
     print "# analyze_pings.py: input_file_name: " + input_file_name
 
     line_queue = LineQueue(4, input_file_name)
