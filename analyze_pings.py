@@ -116,7 +116,7 @@ def main():
     timestamp = datetime.datetime.isoformat(\
             datetime.datetime.today())
     print "# analyze_pings.py"
-    print "# analyze_pings.py: timestamp: " + timestamp
+    print "# analyze_pings.py: start: timestamp: " + timestamp
 
     parser = argparse.ArgumentParser(description='Analyze a ping log')
     parser.add_argument('-f', nargs='?',\
@@ -314,8 +314,20 @@ def main():
     # index 1 is nice
     # index 2 is system
     # index 3 is idle
-    print "User time: " + str(cputime_1[0] - cputime_0[0])
-    print "System time: " + str(cputime_1[2] - cputime_0[2])
+
+    timestamp = datetime.datetime.isoformat(\
+            datetime.datetime.today())
+    print "# analyze_pings.py: end: timestamp: " + timestamp
+    print "# analyze_pings.py: User time: " +\
+            str(cputime_1[0] - cputime_0[0]) + " S"
+    print "# analyze_pings.py: User time per record: " +\
+            str(1e6 * (cputime_1[0] - cputime_0[0]) / linecount) +\
+            " uS"
+    print "# analyze_pings.py: System time: " +\
+            str(cputime_1[2] - cputime_0[2]) + " S"
+    print "# analyze_pings.py: System time per record: " +\
+            str(1e6 * (cputime_1[2] - cputime_0[2]) / linecount) +\
+            " uS"
 
 if __name__ == '__main__':
     main()
