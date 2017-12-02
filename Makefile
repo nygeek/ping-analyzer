@@ -5,7 +5,7 @@
 DIRS = "."
 DIRPATH="~/projects/p/pinger"
 
-GIT_VERSION := $(shell git describe --abbrev=4 --dirty --always --tags)
+BUILD_VERSION := $(shell cat version.txt)
 
 HOSTS = waffle pancake
 PUSH_FILES = $(HOSTS:%=.%_push)
@@ -15,13 +15,17 @@ help: ${FORCE}
 
 SOURCE = \
 	analyze_pings.py \
-	LineQueue.py
+	LineQueue.py \
+	Makefile
+
+DATA = \
+	sample.txt \
+	2017-11-26-15.38.txt
 
 FILES = \
 	${SOURCE} \
 	lqtest.txt \
-	Makefile \
-	sample.txt
+	version.txt
 
 stuff.tar: ${FORCE}
 	tar -cvf stuff.tar ${FILES}
@@ -32,10 +36,10 @@ CRUNCHER = analyze_pings.py
 
 test: ${FORCE}
 	head -100000 ${DATA} > ${HOME}/tmp/test.txt
-	python ${CRUNCHER} -v ${GIT_VERSION} -f ${HOME}/tmp/test.txt
+	python ${CRUNCHER} -v ${BUILD_VERSION} -f ${HOME}/tmp/test.txt
 
 run: ${FORCE}
-	python ${CRUNCHER} -v ${GIT_VERSION} -f ${DATA}
+	python ${CRUNCHER} -v ${BUILD_VERSION} -f ${DATA}
 
 lqtest: ${FORCE}
 	python LineQueue.py
@@ -51,7 +55,11 @@ diff: .gitattributes
 	git diff
 
 commit: .gitattributes
-	git commit ${FILES}
+	git commit ${SOURCE}
+	git describe --abbrev=4 --dirty --always --tags > version.txt
+
+version.txt: ${FORCE}
+	git describe --abbrev=4 --dirty --always --tags > version.txt
 
 log: .gitattributes
 	git log --pretty=oneline
