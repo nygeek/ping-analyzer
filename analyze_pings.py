@@ -68,7 +68,7 @@ def parse_normal_return(line, linenumber):
     (icmp_seq, numb) = seq.split("=")
     return (ip_address, numb, t)
 
-def classify(line_queue, line, linenumber):
+def classify(line_queue, line, linenumber, threshold):
     """ Given a line from the pinger output, classify it. """
 
     # print "classify(): " + line
@@ -91,6 +91,8 @@ def classify(line_queue, line, linenumber):
         (junk, seq_num, rtt) = parse_normal_return(line.strip(), linenumber)
         if float(rtt) < 0:
             return ("NegativeRTT", int(seq_num))
+        if float(rtt) > threshold:
+            return ("RTTTooLong", int(seq_num))
         return ("Normal", int(seq_num))
     elif line.startswith("92 bytes from "):
         # this precedes three more lines for the report
@@ -142,13 +144,15 @@ def main():
                        "Timeout",
                        "Normal",
                        "NegativeRTT",
+                       "RTTTooLong",
                        "Unexpected"]
     down_classifications = [
                        "Down",
                        "GWFailure",
                        "Route",
                        "Timeout",
-                       "NegativeRTT"
+                       "NegativeRTT",
+                       "RTTTooLong"
                        ]
     counters = {"Down": 0,
                 "Comment": 0,
@@ -157,6 +161,7 @@ def main():
                 "Timeout": 0,
                 "Normal": 0,
                 "NegativeRTT": 0,
+                "RTTTooLong": 0,
                 "Unexpected": 0}
 
     linecount = 0
@@ -186,7 +191,8 @@ def main():
         linecount += 1
         # print "linecount: '" + str(linecount)
         # print "line: '" + line.strip() + "'"
-        (kind, seq_num) = classify(line_queue, line.strip(), linecount)
+        # TODO threshold should be dynamically calculated
+        (kind, seq_num) = classify(line_queue, line.strip(), linecount, 100)
         # print "   kind: " + kind
         if kind:
             counters[kind] += 1
@@ -276,6 +282,7 @@ def main():
     print "GWfailure: ", counters["GWFailure"]
     print "Normal: ", counters["Normal"]
     print "NegativeRTT: ", counters["NegativeRTT"]
+    print "RTTTooLong: ", counters["RTTTooLong"]
     print "Comment: ", counters["Comment"]
     print "Route: ", counters["Route"]
     print "Timeout: ", counters["Timeout"]
@@ -293,6 +300,7 @@ def main():
     checksum -= counters["GWFailure"]
     checksum -= counters["Normal"]
     checksum -= counters["NegativeRTT"]
+    checksum -= counters["RTTTooLong"]
     checksum -= counters["Comment"]
     checksum -= counters["Route"]
     checksum -= counters["Timeout"]
