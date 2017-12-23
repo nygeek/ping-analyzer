@@ -15,9 +15,11 @@ help: ${FORCE}
 
 SOURCE = \
 	analyze_pings.py \
+	insert_timestamps.py \
 	LICENSE.md \
 	LineQueue.py \
 	Makefile \
+	pinger.py \
 	README.md
 
 DATA = \
@@ -27,7 +29,9 @@ DATA = \
 FILES = \
 	${SOURCE} \
 	.gitignore \
-	lqtest.txt
+	pinger.cfg \
+	lqtest.txt \
+	weird.cfg
 
 stuff.tar: ${FORCE}
 	tar -cvf stuff.tar ${FILES}
@@ -61,6 +65,7 @@ status: ${FORCE}
 
 commit: .gitattributes
 	git commit ${FILES}
+	git push -u origin master
 	git describe --abbrev=4 --dirty --always --tags > version.txt
 
 version.txt: ${FORCE}
