@@ -32,7 +32,7 @@ FILES = \
 stuff.tar: ${FORCE}
 	tar -cvf stuff.tar ${FILES}
 
-DATA = sample.txt
+DATA = data/sample.txt
 
 CRUNCHER = analyze_pings.py
 
@@ -55,6 +55,9 @@ pylint: ${SOURCE}
 
 diff: .gitattributes
 	git diff
+
+status: ${FORCE}
+	git status
 
 commit: .gitattributes
 	git commit ${FILES}
