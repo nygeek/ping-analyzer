@@ -16,7 +16,8 @@ help: ${FORCE}
 SOURCE = \
 	analyze_pings.py \
 	LineQueue.py \
-	Makefile
+	Makefile \
+	README.md
 
 DATA = \
 	sample.txt \
