@@ -1,0 +1,5 @@
+# untracked files
+data
+results
+version.txt
+*.pyc

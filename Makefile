@@ -26,6 +26,7 @@ DATA = \
 
 FILES = \
 	${SOURCE} \
+	.gitignore \
 	lqtest.txt
 
 stuff.tar: ${FORCE}
