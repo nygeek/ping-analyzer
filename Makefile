@@ -15,6 +15,7 @@ help: ${FORCE}
 
 SOURCE = \
 	analyze_pings.py \
+	LICENSE.md \
 	LineQueue.py \
 	Makefile \
 	README.md
