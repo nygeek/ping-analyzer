@@ -21,8 +21,8 @@ SOURCE = \
 	README.md
 
 DATA = \
-	sample.txt \
-	2017-11-26-15.38.txt
+	data/sample.txt \
+	data/2017-11-26-15.38.txt
 
 FILES = \
 	${SOURCE} \
@@ -57,7 +57,7 @@ diff: .gitattributes
 	git diff
 
 commit: .gitattributes
-	git commit ${SOURCE}
+	git commit ${FILES}
 	git describe --abbrev=4 --dirty --always --tags > version.txt
 
 version.txt: ${FORCE}
