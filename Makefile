@@ -26,8 +26,7 @@ DATA = \
 
 FILES = \
 	${SOURCE} \
-	lqtest.txt \
-	version.txt
+	lqtest.txt
 
 stuff.tar: ${FORCE}
 	tar -cvf stuff.tar ${FILES}
