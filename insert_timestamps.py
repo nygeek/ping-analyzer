@@ -50,7 +50,7 @@ def main():
     try:
         timer_interval = config.getint('pinger', 'timer_interval')
     except ConfigParser.NoOptionError:
-        timer_interval = 100
+        timer_interval = 10
 
     # print "# insert_timestamps.py: host_list: " + str(host_list)
     print "# insert_timestamps.py: timer_interval: " + str(timer_interval)

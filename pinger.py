@@ -46,6 +46,26 @@ def main():
         hosts = 'localhost'
     host_list = hosts.split(", ")
 
+    try:
+        ping_command = config.get('pinger', 'ping_command')
+    except ConfigParser.NoOptionError:
+        ping_command = 'ping -n'
+
+    # insert_timestamps program is here
+    insert_timestamps_path = os.path.expanduser(\
+            '~/projects/p/pinger/insert_timestamps.py')
+
+    # construct the log file path name
+    try:
+        destination_directory = config.get(\
+                'pinger', 'destination_directory')
+    except ConfigParser.NoOptionError:
+        destination_directory = '/tmp'
+    # filename components:
+    #   date + time
+    #   hostname
+    #   process ID of writer
+
     # timer_interval us used by the insert_timestamps.py program
     #
     # try:
@@ -55,6 +75,14 @@ def main():
 
     print "# pinger.py: host_list: " + str(host_list)
     # print "# pinger.py: timer_interval: " + str(timer_interval)
+
+    # now construct the command strings for the pipelines
+    # First - run ping
+    command[0] = ping_command
+    # Second - pipe the ping output through insert_timestamp
+    command[1] = "python " + insert_timestamps_path + \
+                    " -c " + config_file_path
+    # Third - tee it into the log file ...
 
     # capture timing information
     cputime_1 = psutil.cpu_times()
