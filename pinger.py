@@ -10,6 +10,7 @@ import datetime as datetime
 import ConfigParser
 import os
 import psutil
+import sys
 
 def main():
     """main body."""
@@ -37,6 +38,7 @@ def main():
     config = ConfigParser.ConfigParser()
     config_file_path = os.path.expanduser(args.c)
 
+    print "# pinger.py: cwd: " + os.getcwd()
     print "# pinger.py: config_file_path: " + config_file_path
     config.read(config_file_path)
 
@@ -61,10 +63,8 @@ def main():
                 'pinger', 'destination_directory')
     except ConfigParser.NoOptionError:
         destination_directory = '/tmp'
-    # filename components:
-    #   date + time
-    #   hostname
-    #   process ID of writer
+
+    destination_directory = os.path.expanduser(destination_directory)
 
     # timer_interval us used by the insert_timestamps.py program
     #
@@ -76,20 +76,44 @@ def main():
     print "# pinger.py: host_list: " + str(host_list)
     # print "# pinger.py: timer_interval: " + str(timer_interval)
 
-    # now construct the command strings for the pipelines
-    # First - run ping
-    command[0] = ping_command
-    # Second - pipe the ping output through insert_timestamp
-    command[1] = "python " + insert_timestamps_path + \
-                    " -c " + config_file_path
-    # Third - tee it into the log file ...
+    destination_directory += "/" + timestamp
+    try:
+        os.mkdir(destination_directory)
+    except OSError:
+        (exc_type, exc_value, ex_traceback) = sys.exc_info()
+        print "ABORT: mkdir(" + destination_directory + ")"
+        exit
+
+    for host in host_list:
+        # now construct the command strings for the pipelines
+
+        command = []
+
+        # First - run ping
+        command.append(ping_command + " " + host)
+
+        # Second - pipe the ping output through insert_timestamp
+        command.append("python " + insert_timestamps_path + \
+                        " -c " + config_file_path)
+
+        # filename components:
+        #   date + time => this will be a directory
+        #   hostname
+        log_file_name = host + '.ping.log'
+
+        # Third - tee it into the log file ...
+        command.append("/usr/bin/tee " + \
+                destination_directory + "/" + log_file_name)
+
+        cmd = " | ".join(command)
+        print cmd + "&"
 
     # capture timing information
     cputime_1 = psutil.cpu_times()
 
     # wrapping up - display timing data
     timestamp = datetime.datetime.isoformat(\
-                    datetime.datetime.today())
+                datetime.datetime.today())
     print "# pinger.py: end: timestamp: " + timestamp
     print "# pinger.py: User time: " +\
                     str(cputime_1[0] - cputime_0[0]) + " S"

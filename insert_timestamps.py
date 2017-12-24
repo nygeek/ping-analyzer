@@ -66,6 +66,7 @@ def main():
                     datetime.datetime.today())
                 print "# timestamp: " + str(timestamp)
             print sys.stdin.readline().strip()
+            sys.stdout.flush()
             linenumber += 1
     except KeyboardInterrupt:
         sys.stdout.flush()
