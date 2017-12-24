@@ -78,6 +78,11 @@ def classify(line_queue, line, linenumber, threshold):
         return ("Down", seq_num)
     elif line.startswith("#"):
         """No sequence number."""
+        # need to parse timestamp comments
+        if line.startswith("# timestamp: "):
+            """This is a timestamp."""
+            (junk, junk, timestamp) = line.split(" ")
+            return ("Timestamp", timestamp)
         return ("Comment", 0)
     elif line == "ping: sendto: No route to host":
         """Get sequence number from subsequent timeout line."""
@@ -137,32 +142,29 @@ def main():
     print line_queue.signature()
 
     # Initialize the counters
-    classifications = ["Down",
+    classifications = [
                        "Comment",
+                       "Down",
                        "GWFailure",
-                       "Route",
-                       "Timeout",
-                       "Normal",
                        "NegativeRTT",
+                       "Normal",
+                       "Route",
                        "RTTTooLong",
+                       "Timeout",
+                       "Timestamp",
                        "Unexpected"]
+
     down_classifications = [
                        "Down",
                        "GWFailure",
-                       "Route",
-                       "Timeout",
                        "NegativeRTT",
-                       "RTTTooLong"
+                       "Route",
+                       "RTTTooLong",
+                       "Timeout"
                        ]
-    counters = {"Down": 0,
-                "Comment": 0,
-                "GWFailure": 0,
-                "Route": 0,
-                "Timeout": 0,
-                "Normal": 0,
-                "NegativeRTT": 0,
-                "RTTTooLong": 0,
-                "Unexpected": 0}
+    counters = {}
+    for key in classifications:
+        counters[key] = 0
 
     linecount = 0
     
@@ -187,6 +189,10 @@ def main():
     down_start = -1
     down_end = -1
 
+    reference_time = "unknown"
+    reference_sequence = sequence_number
+    reference_linenumber = linecount
+
     while line:
         linecount += 1
         # print "linecount: '" + str(linecount)
@@ -196,7 +202,12 @@ def main():
         # print "   kind: " + kind
         if kind:
             counters[kind] += 1
-            if kind == "Normal":
+            if kind == "Timestamp":
+                # oops - seq_num is not a number, it's a string!
+                reference_time = seq_num
+                reference_sequence = sequence_number
+                reference_linenumber = linecount
+            elif kind == "Normal":
                 (ip, num, rtt) = \
                         parse_normal_return(line.strip(), linecount)
                 # result is a tuple: (ip_address, sequence_number, rtt)
@@ -225,6 +236,13 @@ def main():
                     print "Down: " + str(down_start) +\
                             " - " + str(down_end) + \
                             "[ " + str(down_end - down_start - 1) + " ]"
+                    if reference_time != "unknown":
+                        print "   reference_time: " +\
+                            str(reference_time)
+                        print "   reference_sequence: " +\
+                            str(reference_sequence)
+                        print "   reference_linenumber: " +\
+                            str(reference_linenumber)
                     # print "linecount: " + str(linecount)
                 else:
                     up_end = sequence_number
@@ -232,6 +250,7 @@ def main():
 
 # We use the online algorithm documented in Wikipedia article:
 # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+
                 normal_ping_count += 1
                 if previous_rtt > 0.0:
                     mean_rtt += \
@@ -262,6 +281,13 @@ def main():
                     print "Up:   " + str(up_start) +\
                             " - " + str(up_end) + \
                             " [ " + str(up_end - up_start - 1) + " ]"
+                    if reference_time != "unknown":
+                        print "   reference_time: " +\
+                            str(reference_time)
+                        print "   reference_sequence: " +\
+                            str(reference_sequence)
+                        print "   reference_linenumber: " +\
+                            str(reference_linenumber)
                 else:
                     down_end = sequence_number
                 network_state = "Down"
@@ -278,15 +304,8 @@ def main():
         line = line_queue.get_line()
 
     print "linecount", linecount
-    print "Down: ", counters["Down"]
-    print "GWfailure: ", counters["GWFailure"]
-    print "Normal: ", counters["Normal"]
-    print "NegativeRTT: ", counters["NegativeRTT"]
-    print "RTTTooLong: ", counters["RTTTooLong"]
-    print "Comment: ", counters["Comment"]
-    print "Route: ", counters["Route"]
-    print "Timeout: ", counters["Timeout"]
-    print "Unexpected: ", counters["Unexpected"]
+    for key in classifications:
+        print key + ": " + str(counters[key])
 
     print "sequence_number: " + str(sequence_number)
     print "sequence_offset: " + str(sequence_offset)
@@ -296,16 +315,8 @@ def main():
     print "Standard Deviation: " + str(sqrt(sigma_squared))
 
     checksum = linecount
-    checksum -= counters["Down"]
-    checksum -= counters["GWFailure"]
-    checksum -= counters["Normal"]
-    checksum -= counters["NegativeRTT"]
-    checksum -= counters["RTTTooLong"]
-    checksum -= counters["Comment"]
-    checksum -= counters["Route"]
-    checksum -= counters["Timeout"]
-    checksum -= counters["Unexpected"]
-
+    for key in classifications:
+        checksum -= counters[key]
     print "checksum: " + str(checksum)
 
     cputime_1 = psutil.cpu_times()
