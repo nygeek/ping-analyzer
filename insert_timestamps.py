@@ -25,13 +25,18 @@ def main():
     print "# insert_timestamps.py"
     print "# insert_timestamps.py: start: timestamp: " + timestamp
 
+    stream_tag = "pid-" + str(os.getpid())
+
     parser = argparse.ArgumentParser(\
             description='Run pings from a configuration file.')
     parser.add_argument('-c', nargs='?',\
             default='./pinger.cfg', help="configuration file name")
+    parser.add_argument('-t', nargs='?',\
+            default=stream_tag, help="tag this stream")
     parser.add_argument('-D', type=int, nargs='?',\
                     default=0, help="Debug flag (int: default to 0)")
     args = parser.parse_args()
+    stream_tag = args.t
 
     config = ConfigParser.ConfigParser()
     config_file_path = os.path.expanduser(args.c)
@@ -64,7 +69,7 @@ def main():
             if not linenumber % timer_interval:
                 timestamp = datetime.datetime.isoformat(\
                     datetime.datetime.today())
-                print "# timestamp: " + str(timestamp)
+                print "# timestamp: " + stream_tag + ": " + str(timestamp)
             print sys.stdin.readline().strip()
             sys.stdout.flush()
             linenumber += 1
