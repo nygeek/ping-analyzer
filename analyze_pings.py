@@ -83,8 +83,8 @@ def classify(line_queue, line, linenumber, threshold):
         """No sequence number."""
         # need to parse timestamp comments
         if line.startswith("# timestamp: "):
-            """This is a timestamp."""
-            (junk, junk, timestamp) = line.split(" ")
+            # this is a timestamp
+            (junk, junk, junk, timestamp) = line.split(" ")
             return ("Timestamp", timestamp)
         return ("Comment", 0)
     elif line.startswith("PING "):
@@ -196,8 +196,13 @@ def main():
     down_start = -1
     down_end = -1
 
+    previous_time = "unknown"
     reference_time = "unknown"
+    previous_timestamp = None
+    reference_timestamp = None
+    previous_sequence = sequence_number
     reference_sequence = sequence_number
+
     reference_linenumber = linecount
 
     while line:
@@ -211,9 +216,21 @@ def main():
             counters[kind] += 1
             if kind == "Timestamp":
                 # oops - seq_num is not a number, it's a string!
+                previous_time = reference_time
+                previous_timestamp = reference_timestamp
+                previous_sequence = reference_sequence
+                #
                 reference_time = seq_num
+                reference_timestamp = ts.TimeStamp(reference_time)
                 reference_sequence = sequence_number
                 reference_linenumber = linecount
+                #
+                if previous_time != "unknown":
+                    delta_t = reference_timestamp.minus_small(\
+                            previous_timestamp)
+                    delta_r = reference_sequence - previous_sequence
+                    print "# time check: delta_r: " + str(delta_r) +\
+                           " delta_t: " + str(delta_t)
             elif kind == "Initialization":
                 pass
             elif kind == "Normal":
@@ -332,7 +349,7 @@ def main():
     # index 3 is idle
 
     ts1 = ts.TimeStamp()
-    print "# analyze_pings.py: end: timestamp: " + timestamp
+    print "# analyze_pings.py: end: timestamp: " + ts1.get_timestamp()
     print "# analyze_pings.py: User time: " +\
             str(cputime_1[0] - cputime_0[0]) + " S"
     print "# analyze_pings.py: User time per record: " +\
