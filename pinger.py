@@ -12,6 +12,12 @@ import os
 import psutil
 import sys
 
+#
+# Roadmap
+# 
+# 2017-12-25 [ ] Add a headless option (-H) that bypasses the tee
+# 
+
 def main():
     """main body."""
 

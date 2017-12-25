@@ -12,14 +12,17 @@ import json
 from math import sqrt
 import psutil
 import re
+import TimeStamp as ts
 
 #
 # Roadmap
 # 
-# 2017-11-12 [ ] Expand handling to recognize the Linux ping
+# 2017-11-12 [x] Expand handling to recognize the Linux ping
 #                syntax.
-# 2017-11-29 [ ] Add signatures to the output for provenance tracking.
-# 2017-11-29 [ ] Add command line flag handling to __main__() ...
+#                [Solved] Invoke ping with the -n flag.
+# 2017-11-29 [x] Add signatures to the output for provenance tracking.
+# 2017-11-29 [x] Add command line flag handling to __main__() ...
+# 2017-12-25 [ ] Complete handling of timestamp information.
 #
 
 def handle_gateway_failure(line_queue, firstline, linenumber):
@@ -121,10 +124,10 @@ def main():
 
     # Self-identification for the run
     # This gives us YYYY-MM-DDTHH:MM:SS+HH:MM
-    timestamp = datetime.datetime.isoformat(\
-            datetime.datetime.today())
+    ts0 = ts.TimeStamp()
+
     print "# analyze_pings.py"
-    print "# analyze_pings.py: start: timestamp: " + timestamp
+    print "# analyze_pings.py: start: timestamp: " + ts0.get_timestamp()
 
     parser = argparse.ArgumentParser(description='Analyze a ping log')
     parser.add_argument('-f', nargs='?',\
@@ -328,8 +331,7 @@ def main():
     # index 2 is system
     # index 3 is idle
 
-    timestamp = datetime.datetime.isoformat(\
-            datetime.datetime.today())
+    ts1 = ts.TimeStamp()
     print "# analyze_pings.py: end: timestamp: " + timestamp
     print "# analyze_pings.py: User time: " +\
             str(cputime_1[0] - cputime_0[0]) + " S"
