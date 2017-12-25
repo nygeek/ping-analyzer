@@ -84,6 +84,8 @@ def main():
         print "ABORT: mkdir(" + destination_directory + ")"
         exit
 
+    final_command = ""
+
     for host in host_list:
         # now construct the command strings for the pipelines
 
@@ -106,7 +108,11 @@ def main():
                 destination_directory + "/" + log_file_name)
 
         cmd = " | ".join(command)
-        print cmd + "&"
+        final_command += cmd + " & "
+
+    print "====="
+    print final_command
+    print "====="
 
     # capture timing information
     cputime_1 = psutil.cpu_times()

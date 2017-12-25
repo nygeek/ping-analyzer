@@ -84,6 +84,9 @@ def classify(line_queue, line, linenumber, threshold):
             (junk, junk, timestamp) = line.split(" ")
             return ("Timestamp", timestamp)
         return ("Comment", 0)
+    elif line.startswith("PING "):
+        """Here is our log of the initial ping commmand"""
+        return ("Initialization", 0)
     elif line == "ping: sendto: No route to host":
         """Get sequence number from subsequent timeout line."""
         seq_num = handle_expected_timeout(line_queue, line, linenumber)
@@ -146,6 +149,7 @@ def main():
                        "Comment",
                        "Down",
                        "GWFailure",
+                       "Initialization",
                        "NegativeRTT",
                        "Normal",
                        "Route",
@@ -207,6 +211,8 @@ def main():
                 reference_time = seq_num
                 reference_sequence = sequence_number
                 reference_linenumber = linecount
+            elif kind == "Initialization":
+                pass
             elif kind == "Normal":
                 (ip, num, rtt) = \
                         parse_normal_return(line.strip(), linecount)
@@ -239,10 +245,8 @@ def main():
                     if reference_time != "unknown":
                         print "   reference_time: " +\
                             str(reference_time)
-                        print "   reference_sequence: " +\
-                            str(reference_sequence)
-                        print "   reference_linenumber: " +\
-                            str(reference_linenumber)
+                        print "   plus (~seconds): " +\
+                            str(sequence_number - reference_sequence)
                     # print "linecount: " + str(linecount)
                 else:
                     up_end = sequence_number
@@ -284,10 +288,8 @@ def main():
                     if reference_time != "unknown":
                         print "   reference_time: " +\
                             str(reference_time)
-                        print "   reference_sequence: " +\
-                            str(reference_sequence)
-                        print "   reference_linenumber: " +\
-                            str(reference_linenumber)
+                        print "   plus (~seconds): " +\
+                            str(sequence_number - reference_sequence)
                 else:
                     down_end = sequence_number
                 network_state = "Down"
