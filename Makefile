@@ -20,7 +20,8 @@ SOURCE = \
 	LineQueue.py \
 	Makefile \
 	pinger.py \
-	README.md
+	README.md \
+	TimeStamp.py
 
 DATA = \
 	data/sample.txt \
