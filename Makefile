@@ -64,10 +64,15 @@ diff: .gitattributes
 status: ${FORCE}
 	git status
 
+# this brings the remote copy into sync with the local one
 commit: .gitattributes
 	git commit ${FILES}
 	git push -u origin master
 	git describe --abbrev=4 --dirty --always --tags > version.txt
+
+# This brings the local copy into sync with the remote (master)
+pull: .gitattributes
+	git pull origin master
 
 version.txt: ${FORCE}
 	git describe --abbrev=4 --dirty --always --tags > version.txt
