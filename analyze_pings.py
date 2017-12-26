@@ -27,6 +27,9 @@ import TimeStamp as ts
 #                is incorrect ... the 'Request timeout ...' is actually
 #                the next record.  These four records are actually part
 #                of the previous record, which is also a Request timeout.
+# 2017-12-26 [ ] Keep track of max and min for RTT
+# 2017-12-26 [ ] Adjust the "RTTTooLong" threshold to be some sort of
+#                multiple of the mean RTT (3x? 4x?).
 #
 
 def handle_gateway_failure(line_queue, firstline, linenumber):

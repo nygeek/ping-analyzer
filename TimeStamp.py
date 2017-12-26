@@ -129,18 +129,21 @@ class TimeStamp(object):
 
 def main():
     """Main routine - just for testing."""
+    
+    print "TimeStamp Class test...\n"
 
-print "TimeStamp Class test...\n"
+    ts0 = TimeStamp('2017-12-25T12:46:18.734556')
+    print "ts0: " + str(ts0)
 
-ts0 = TimeStamp('2017-12-25T12:46:18.734556')
-print "ts0: " + str(ts0)
+    print "ts0.get_parts(): " + str(ts0.get_parts())
 
-print "ts0.get_parts(): " + str(ts0.get_parts())
+    # Another timestamp - just now
+    ts1 = TimeStamp()
+    print "ts1: " + str(ts1)
 
-# Another timestamp - just now
-ts1 = TimeStamp()
-print "ts1: " + str(ts1)
+    # Difference in seconds between the two timestamps ...
+    # Only works if they are in the same day
+    print "difference ts1 - ts0: " + str(ts1.minus_small(ts0))
 
-# Difference in seconds between the two timestamps ...
-# Only works if they are in the same day
-print "difference ts1 - ts0: " + str(ts1.minus_small(ts0))
+if __name__ == '__main__':
+    main()
