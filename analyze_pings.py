@@ -23,15 +23,18 @@ import TimeStamp as ts
 # 2017-11-29 [x] Add signatures to the output for provenance tracking.
 # 2017-11-29 [x] Add command line flag handling to __main__() ...
 # 2017-12-25 [ ] Complete handling of timestamp information.
+# 2017-12-26 [x] The five line expectation in 'handle_gateway_failure'
+#                is incorrect ... the 'Request timeout ...' is actually
+#                the next record.  These four records are actually part
+#                of the previous record, which is also a Request timeout.
 #
 
 def handle_gateway_failure(line_queue, firstline, linenumber):
     """ when a line starts with '92 bytes from ' we have
-    to expect four more lines:
+    to expect three more lines:
        'Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst'
        (a bunch of numbers and data)
        (a blank line)
-       'Request timeout for icmp_seq '
     """
     pattern = "Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst"
     # need to flush three lines here ...
@@ -40,9 +43,6 @@ def handle_gateway_failure(line_queue, firstline, linenumber):
         print "handle_gateway_failure(): linenumber: " + str(linenumber)
     thirdline = line_queue.get_line()
     fourthline = line_queue.get_line()
-    fifthline = line_queue.get_line()
-    (junk, sequence_number) = fifthline.split("icmp_seq ")
-    return int(sequence_number)
 
 def handle_expected_timeout(line_queue, firstline, linenumber):
     """When we encounter a various messages we can
@@ -108,8 +108,8 @@ def classify(line_queue, line, linenumber, threshold):
     elif line.startswith("92 bytes from "):
         # this precedes three more lines for the report
         # first push this back on the queue
-        seq_num = handle_gateway_failure(line_queue, line, linenumber)
-        return ("GWFailure", int(seq_num))
+        handle_gateway_failure(line_queue, line, linenumber)
+        return ("GWFailure", -1)
     else:
         # Is there anything other than '64 bytes...'?
         print "linenumber: ", str(linenumber)
@@ -205,6 +205,7 @@ def main():
 
     reference_linenumber = linecount
 
+    explanation = ""
     while line:
         linecount += 1
         # print "linecount: '" + str(linecount)
@@ -262,6 +263,7 @@ def main():
                     print "Down: " + str(down_start) +\
                             " - " + str(down_end) + \
                             "[ " + str(down_end - down_start - 1) + " ]"
+                    print "   explanation: " + explanation
                     if reference_time != "unknown":
                         print "   reference_time: " +\
                             str(reference_time)
@@ -292,6 +294,7 @@ def main():
                 previous_sigma_squared = sigma_squared
             elif kind in down_classifications:
                 # Handle network state stuff
+                explanation = kind
                 if network_state == "None":
                     down_start = sequence_number
                     down_end = sequence_number

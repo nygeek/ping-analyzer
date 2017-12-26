@@ -106,6 +106,7 @@ class TimeStamp(object):
         subtrahend = ts.get_parts()
         difference = [minuend[i] - subtrahend[i] for i in range(7)]
         fail = difference[0] + difference[1] + difference[2]
+        diff = 0
         if not fail:
             diff = difference[3]
             # diff is in hours now
