@@ -119,6 +119,82 @@ def classify(line_queue, line, linenumber, threshold):
         print "Unexpected: '", line, "'"
         return ("Unexpected", -1)
 
+class SequenceStats(object):
+    """Accumulate statistics on a sequence of reals."""
+    def __init__(self, value, incremental=True):
+        # We will only use the incremental stats for now
+        # The flag is a place holder for when we add global
+        self.incremental = incremental
+        # Initialize stats structure
+        self.minimum = value
+        self.maximum = value
+        self.n = 1
+        # Initialize previous structure
+        self.previous = {}
+        self.previous['value'] = None
+        self.previous['variance'] = -1
+        self.previous['mean'] = None
+        # Set up current value
+        self.current = {}
+        self.current['value'] = value
+        self.current['variance'] = -1
+        self.current['mean'] = value
+
+    def accumulate(self, value):
+        """Accept a data value and add them to the stats."""
+        self.n += 1
+        self.previous['value'] = self.current['value']
+        self.current['value'] = value
+        self.maximum = max(self.maximum, value)
+        self.minimum = min(self.minimum, value)
+        # Incremental mean
+        t = self.current['mean']
+        if self.previous['mean']:
+            self.current['mean'] = self.current['mean'] +\
+                (self.current['value'] - self.previous['mean']) / self.n
+        self.previous['mean'] = t
+        # Now start on the incremental variance
+        val_0 = self.current['value']
+        # val_1 = self.previous['value']
+        var_0 = self.current['variance']
+        var_1 = self.previous['variance']
+        mean_0 = self.current['mean']
+        mean_1 = self.previous['mean']
+# We use the online algorithm documented in Wikipedia article:
+# https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        variance_new =\
+            ( (self.n - 1) * var_1 +\
+              (val_0 - mean_1) * (val_0 - mean_0)\
+            ) / self.n
+        self.previous['variance'] = var_0
+        self.current['variance'] = variance_new
+
+    def get_mean(self):
+        """Fetch the mean."""
+        return self.current['mean']
+
+    def get_variance(self):
+        """Fetch the variance."""
+        return self.current['variance']
+
+    def get_minimum(self):
+        """Fetch the minimum."""
+        return self.minimum
+
+    def get_maximum(self):
+        """Fetch the maximum."""
+        return self.maximum
+
+    def __str__(self):
+        stats = {
+                "n": self.n,
+                "minimum": self.minimum,
+                "maximum": self.maximum
+                }
+        return json.dumps(\
+                [stats, self.current],\
+                indent=2, separators=(',', ': '))
+
 def main():
     """Main body."""
 
@@ -207,6 +283,8 @@ def main():
     reference_sequence = sequence_number
 
     reference_linenumber = linecount
+    rtt_stats = None
+    zrtt = None
 
     explanation = ""
     while line:
@@ -243,6 +321,8 @@ def main():
                 # result is a tuple: (ip_address, sequence_number, rtt)
                 # ping sends pings once per second, so sequence_number
                 # is rough count of seconds.
+                if not zrtt:
+                    rtt_stats = SequenceStats(float(rtt))
                 zrtt = float(rtt)
                 inum = int(num)
                 sequence_number = seq_num + sequence_offset
@@ -280,6 +360,9 @@ def main():
 # We use the online algorithm documented in Wikipedia article:
 # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 
+                # Use the new stats class to accumulate the data
+                rtt_stats.accumulate(zrtt)
+
                 normal_ping_count += 1
                 if previous_rtt > 0.0:
                     mean_rtt += \
@@ -295,6 +378,7 @@ def main():
                       (zrtt - mean_rtt)
                     ) / normal_ping_count
                 previous_sigma_squared = sigma_squared
+
             elif kind in down_classifications:
                 # Handle network state stuff
                 explanation = kind
@@ -338,9 +422,10 @@ def main():
     print "sequence_number: " + str(sequence_number)
     print "sequence_offset: " + str(sequence_offset)
     print "normal_ping_count: " + str(normal_ping_count)
-    print "Average rtt: " + str(mean_rtt)
+    print "Average RTT: " + str(mean_rtt)
     print "Variance: " + str(sigma_squared)
     print "Standard Deviation: " + str(sqrt(sigma_squared))
+    print "rtt_stats: " + str(rtt_stats)
 
     checksum = linecount
     for key in classifications:
