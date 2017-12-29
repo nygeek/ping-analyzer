@@ -35,6 +35,18 @@ import TimeStamp as ts
 # 2017-12-27 [ ] Separate the SequenceStats class into its own module.
 #
 
+timestamp_pattern = ""
+
+def recognize_timestamp(line):
+    """Handle a timestamp comment line."""
+    # This is a pukey way to handle this imported constant ...
+    # I bet there's a better way.  Figure it out.
+    global timestamp_pattern
+    if re.match(timestamp_pattern, line):
+        return True
+    else:
+        return False
+
 def handle_gateway_failure(line_queue, firstline, linenumber):
     """ when a line starts with '92 bytes from ' we have
     to expect three more lines:
@@ -45,10 +57,23 @@ def handle_gateway_failure(line_queue, firstline, linenumber):
     pattern = "Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst"
     # need to flush three lines here ...
     secondline = line_queue.get_line()
+    pushback = None
+    if recognize_timestamp(secondline):
+        pushback = secondline
+        secondline = line_queue.get_line()
     if secondline.strip() != pattern:
         print "handle_gateway_failure(): linenumber: " + str(linenumber)
     thirdline = line_queue.get_line()
+    if recognize_timestamp(thirdline):
+        pushback = thirdline
+        thirdline = line_queue.get_line()
     fourthline = line_queue.get_line()
+    if recognize_timestamp(fourthline):
+        pushback = fourthline
+        fourthline = line_queue.get_line()
+    # sweet - LineQueue to the rescue
+    if pushback:
+        line_queue.push_back(pushback)
 
 def handle_expected_timeout(line_queue, firstline, linenumber):
     """When we encounter a various messages we can
@@ -75,7 +100,6 @@ def parse_normal_return(line, linenumber):
 
 def classify(line_queue, line, linenumber, threshold):
     """ Given a line from the pinger output, classify it. """
-
     # print "classify(): " + line
     if line == "ping: sendto: Network is down":
         """Get sequence number from subsequent line."""
@@ -108,8 +132,6 @@ def classify(line_queue, line, linenumber, threshold):
             return ("RTTTooLong", int(seq_num))
         return ("Normal", int(seq_num))
     elif line.startswith("92 bytes from "):
-        # this precedes three more lines for the report
-        # first push this back on the queue
         handle_gateway_failure(line_queue, line, linenumber)
         return ("GWFailure", -1)
     else:
@@ -236,6 +258,7 @@ class SequenceStats(object):
 
 def main():
     """Main body."""
+    global timestamp_pattern
 
     # capture timing information
     cputime_0 = psutil.cpu_times()
@@ -243,6 +266,7 @@ def main():
     # Self-identification for the run
     # This gives us YYYY-MM-DDTHH:MM:SS+HH:MM
     ts0 = ts.TimeStamp()
+    timestamp_pattern = ts0.get_recognizer_re()
 
     print "# analyze_pings.py"
     print "# analyze_pings.py: start: timestamp: " + ts0.get_timestamp()
@@ -378,7 +402,7 @@ def main():
                     # print "Network state initialization: Up"
                     # print "   sequence_number: " + str(sequence_number)
                 elif network_state == "Down":
-                    down_end = sequence_number
+                    down_end = sequence_number - 1
                     up_start = sequence_number
                     up_end = sequence_number
                     #
@@ -432,7 +456,7 @@ def main():
                     # print "Network state initialization: Down"
                     # print "   sequence_number: " + str(sequence_number)
                 elif network_state == "Up":
-                    up_end = sequence_number
+                    up_end = sequence_number - 1
                     down_start = sequence_number
                     down_end = sequence_number
                     #

@@ -23,21 +23,23 @@ SOURCE = \
 	README.md \
 	TimeStamp.py
 
+# various ping logs
 DATA = \
-	data/sample.txt \
-	data/2017-11-26-15.38.txt
+	data/2017-11-26-15.38.txt \
+	data/panix.com.ping.log \
+	data/sample.txt
 
+# support data
 FILES = \
 	${SOURCE} \
 	.gitignore \
 	pinger.cfg \
-	lqtest.txt \
-	weird.cfg
+	lqtest.txt
 
 stuff.tar: ${FORCE}
 	tar -cvf stuff.tar ${FILES}
 
-DATA = data/sample.txt
+DATA = data/panix.com.ping.log
 
 CRUNCHER = analyze_pings.py
 

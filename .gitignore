@@ -1,6 +1,7 @@
 # untracked files
 data
 results
+toys
 version.txt
 sample.txt
 *.pyc

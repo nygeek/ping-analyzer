@@ -25,11 +25,14 @@ class TimeStamp(object):
 
     def __init__(self, ts='now'):
         # YYYY-MM-DD
-        self.pattern = '([0-9]{4})-([0-9]{2})-([0-9]{2})'
-        # hh:mm:ss
-        self.pattern += 'T([0-9]{2}):([0-9]{2}):([0-9]{2})'
-        # fraction of a second
-        self.pattern += '\.([0-9]{6})'
+        self.pattern = '(\d{4})-(\d{2})-(\d{2})'
+        # Thh:mm:ss
+        self.pattern += 'T(\d{2}):(\d{2}):(\d{2})'
+        # (microseconds)
+        self.pattern += '\.(\d{6})'
+        # This is here just for the ping analyzer system
+        self.re_prefix = "# timestamp: \S+: \d{4}-\d{2}-\d{2}"
+        self.re_prefix += "T\d{2}:\d{2}:\d{2}\.\d{6}"
         # initialize with the timestamp passed, or now
         if ts=='now': 
             self.timestamp = datetime.datetime.isoformat(\
@@ -37,6 +40,10 @@ class TimeStamp(object):
         else:
             self.timestamp = ts
         self.parsed = False
+
+    def get_recognizer_re(self):
+        """Give back a recognizer regular expression."""
+        return self.re_prefix
 
     def parse_ts(self):
         """Pick the timestamp apart into components."""
@@ -132,7 +139,7 @@ def main():
     
     print "TimeStamp Class test...\n"
 
-    ts0 = TimeStamp('2017-12-25T12:46:18.734556')
+    ts0 = TimeStamp('2017-12-28T12:46:18.734556')
     print "ts0: " + str(ts0)
 
     print "ts0.get_parts(): " + str(ts0.get_parts())
@@ -144,6 +151,25 @@ def main():
     # Difference in seconds between the two timestamps ...
     # Only works if they are in the same day
     print "difference ts1 - ts0: " + str(ts1.minus_small(ts0))
+
+    # Ping Analyzer timestamp comment
+    # this will succeed
+    sample_ts = "# timestamp: pid-23118: 2017-12-28T20:53:41.148740"
+    pat = ts0.get_recognizer_re()
+    print "pat: '" + pat + "'"
+    print "sample_ts: '" + sample_ts + "'"
+    if re.match(pat, sample_ts):
+        print "   match"
+    else:
+        print "   fail"
+
+    # this will fail
+    sample_ts = "# timestamp: pid-23118: z017-12-28T20:53:41.148740"
+    print "sample_ts: '" + sample_ts + "'"
+    if re.match(pat, sample_ts):
+        print "   match"
+    else:
+        print "   fail"
 
 if __name__ == '__main__':
     main()
