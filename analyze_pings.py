@@ -6,13 +6,13 @@ time and summarize and analyze the various errors.
 """
 
 from LineQueue import LineQueue
+
 import argparse
-import datetime as datetime
 import json
-from math import sqrt
 import numpy as np
 import psutil
 import re
+import SequenceStats as ss
 import TimeStamp as ts
 
 #
@@ -32,7 +32,8 @@ import TimeStamp as ts
 #                [Done] 2017-12-27
 # 2017-12-26 [ ] Adjust the "RTTTooLong" threshold to be some sort of
 #                multiple of the mean RTT (3x? 4x?).
-# 2017-12-27 [ ] Separate the SequenceStats class into its own module.
+# 2017-12-27 [x] Separate the SequenceStats class into its own module.
+#                [Done] 2017-12-29
 #
 
 timestamp_pattern = ""
@@ -95,7 +96,7 @@ def parse_normal_return(line, linenumber):
     pattern = '64 bytes from (\d+\.\d+\.\d+\.\d+): '
     pattern += 'icmp_seq=(\d+) ttl=(\d+) time=(\d+\.?\d*) ms'
     (re_ip, re_seq, re_ttl, re_rtt) = \
-        [re.match(pattern, line).group(k) for k in range(1,5)]
+        [re.match(pattern, line).group(k) for k in [1,2,3,4]]
     return (re_ip, re_seq, re_rtt)
 
 def classify(line_queue, line, linenumber, threshold):
@@ -139,122 +140,6 @@ def classify(line_queue, line, linenumber, threshold):
         print "linenumber: ", str(linenumber)
         print "Unexpected: '", line, "'"
         return ("Unexpected", -1)
-
-class SequenceStats(object):
-    """Accumulate statistics on a sequence of reals."""
-    def __init__(self, value, incremental=True):
-        # We will only use the incremental stats for now
-        # The flag is a place holder for when we add global
-        # BTW - can only do median if we turn off incremental
-        self.incremental = incremental
-        print "self.incremental: " + str(self.incremental)
-        # Initialize stats structure
-        self.minimum = value
-        self.maximum = value
-        self.n = 1
-        # Initialize previous structure
-        self.previous = {}
-        self.previous['value'] = None
-        self.previous['variance'] = -1
-        self.previous['mean'] = None
-        # Set up current value
-        self.current = {}
-        self.current['value'] = value
-        self.current['variance'] = -1
-        self.current['mean'] = value
-        # non-Incremental
-        self.history = []
-        self.history.append(value)
-        self.narray = None
-        self.nstats = {}
-
-    def accumulate(self, value):
-        """Accept a data value and add them to the stats."""
-        self.n += 1
-
-        self.previous['value'] = self.current['value']
-        self.current['value'] = value
-        self.maximum = max(self.maximum, value)
-        self.minimum = min(self.minimum, value)
-
-        # Incremental mean
-        t = self.current['mean']
-        if self.previous['mean']:
-            self.current['mean'] = self.current['mean'] +\
-                (self.current['value'] - self.previous['mean']) / self.n
-        self.previous['mean'] = t
-
-        # Now start on the incremental variance
-        val_0 = self.current['value']
-        # val_1 = self.previous['value']
-        var_0 = self.current['variance']
-        var_1 = self.previous['variance']
-        mean_0 = self.current['mean']
-        mean_1 = self.previous['mean']
-
-# We use the online algorithm documented in Wikipedia article:
-# https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-        variance_new =\
-            ( (self.n - 1) * var_1 +\
-              (val_0 - mean_1) * (val_0 - mean_0)\
-            ) / self.n
-        self.previous['variance'] = var_0
-        self.current['variance'] = variance_new
-
-        # non-Incremental here ...
-        self.history.append(value)
-
-    def build_narray(self):
-        """Construct the numpy array for non-incremental stats."""
-        print "build_narray()"
-        self.narray = np.array(self.history)
-        # While we're at it, calculate the stats.
-        self.nstats['mean'] = np.mean(self.narray)
-        self.nstats['variance'] = np.var(self.narray)
-        self.nstats['n'] = len(self.history)
-
-    def get_mean(self):
-        """Fetch the mean."""
-        self.build_narray()
-        return [self.current['mean'], self.nstats['mean']]
-        # return self.current['mean']
-
-    def get_variance(self):
-        """Fetch the variance."""
-        self.build_narray()
-        return [self.current['variance'], self.nstats['variance']]
-        # return self.current['variance']
-
-    def get_minimum(self):
-        """Fetch the minimum."""
-        return self.minimum
-
-    def get_maximum(self):
-        """Fetch the maximum."""
-        return self.maximum
-
-    def __str__(self):
-        if not self.incremental:
-            stats = {
-                    "incremental": str(self.incremental),
-                    "n": self.n,
-                    "len(history)": len(self.history),
-                    "minimum": self.minimum,
-                    "maximum": self.maximum
-                    }
-            return json.dumps(\
-                    [stats, self.current],\
-                    indent=2, separators=(',', ': '))
-        else:
-            stats = {
-                    "incremental": str(self.incremental),
-                    "n": self.n,
-                    "minimum": self.minimum,
-                    "maximum": self.maximum
-                    }
-            return json.dumps(\
-                    [stats, self.current, self.nstats],\
-                    indent=2, separators=(',', ': '))
 
 def main():
     """Main body."""
@@ -321,11 +206,18 @@ def main():
     recent_num = 0
 
     # variables used for online mean and standard deviation
-    previous_rtt = -1
-    mean_rtt = -1
-    previous_mean_rtt = 0
-    variance = -1
-    previous_variance = 0
+    current = {}
+    previous = {}
+    
+    previous['rtt'] = None
+    current['rtt'] = None
+
+    previous['mean'] = 0.0
+    current['mean'] = 0.0
+
+    previous['variance'] = 0.0
+    current['variance'] = 0.0
+
     normal_ping_count = 0
 
     sequence_number = -1
@@ -338,14 +230,19 @@ def main():
     down_start = -1
     down_end = -1
 
-    previous_time = "unknown"
-    reference_time = "unknown"
-    previous_timestamp = None
-    reference_timestamp = None
-    previous_sequence = sequence_number
-    reference_sequence = sequence_number
+    previous['time'] = "unknown"
+    current['time'] = "unknown"
 
-    reference_linenumber = linecount
+    previous['timestamp'] = None
+    current['timestamp'] = None
+
+    previous['sequence'] = sequence_number
+    current['sequence'] = sequence_number
+
+    current['linenumber'] = linecount
+
+    # reference_linenumber = linecount
+    
     rtt_stats = None
     zrtt = None
 
@@ -361,19 +258,20 @@ def main():
             counters[kind] += 1
             if kind == "Timestamp":
                 # oops - seq_num is not a number, it's a string!
-                previous_time = reference_time
-                previous_timestamp = reference_timestamp
-                previous_sequence = reference_sequence
+                previous['time'] = current['time']
+                previous['timestamp'] = current['timestamp']
+                previous['sequence'] = current['sequence']
+                # 
+                current['time'] = seq_num
+                current['timestamp'] = ts.TimeStamp(current['time'])
+                current['sequence'] = sequence_number
+                current['linenumber'] = linecount
                 #
-                reference_time = seq_num
-                reference_timestamp = ts.TimeStamp(reference_time)
-                reference_sequence = sequence_number
-                reference_linenumber = linecount
-                #
-                if previous_time != "unknown":
-                    delta_t = reference_timestamp.minus_small(\
-                            previous_timestamp)
-                    delta_r = reference_sequence - previous_sequence
+                # if previous_time != "unknown":
+                if previous['time'] != "unknown":
+                    delta_t = current['timestamp'].minus_small(\
+                            previous['timestamp'])
+                    delta_r = current['sequence'] - previous['sequence']
                     print "# time check: delta_r: " + str(delta_r) +\
                            " delta_t: " + str(delta_t)
             elif kind == "Initialization":
@@ -381,19 +279,23 @@ def main():
             elif kind == "Normal":
                 (ip, num, rtt) = \
                         parse_normal_return(line.strip(), linecount)
-                # result is a tuple: (ip_address, sequence_number, rtt)
-                # ping sends pings once per second, so sequence_number
-                # is rough count of seconds.
-                if not zrtt:
-                    rtt_stats = SequenceStats(float(rtt), True)
-                zrtt = float(rtt)
-                inum = int(num)
-                sequence_number = seq_num + sequence_offset
 
+                # result is a tuple of strings:
+                #     (ip_address, sequence_number, rtt)
+                # ping sends pings once per second, so sequence_number
+                # is roughly a count of seconds.
+
+                if not zrtt:
+                    rtt_stats = ss.SequenceStats(float(rtt), False)
+                    current['mean'] = float(rtt)
+                zrtt = float(rtt)
+
+                inum = int(num)
                 if inum == 0 and network_state != "None":
                     # The sequence number only goes to 65535, so we
                     # will keep track of the rolls
                     sequence_offset += 65536
+                sequence_number = inum + sequence_offset
 
                 # Handle network state stuff
                 if network_state == "None":
@@ -412,11 +314,11 @@ def main():
                     if explanation == "RTTTooLong":
                         explanation += " RTT: " + str(zrtt)
                     print "   explanation: " + explanation
-                    if reference_time != "unknown":
-                        print "   reference_time: " +\
-                            str(reference_time)
+                    if current['time'] != "unknown":
+                        print "   current['time']: " +\
+                            str(current['time'])
                         print "   plus (~seconds): " +\
-                            str(sequence_number - reference_sequence)
+                            str(sequence_number - current['sequence'])
                     # print "linecount: " + str(linecount)
                 else:
                     up_end = sequence_number
@@ -429,23 +331,24 @@ def main():
                 rtt_stats.accumulate(zrtt)
 
                 normal_ping_count += 1
-                if previous_rtt > 0.0:
-                    temp = mean_rtt
-                    mean_rtt += \
-                        (zrtt - previous_mean_rtt) /\
+                if previous['rtt'] > 0.0:
+                    temp = current['mean']
+                    current['mean'] += \
+                        (zrtt - previous['mean']) /\
                         float(normal_ping_count)
-                    previous_mean_rtt = temp
-                previous_rtt = zrtt
+                    previous['mean'] = temp
+                previous['rtt'] = zrtt
+                # previous_rtt = zrtt
                 # This works because the first time through 
                 # previous_variance is zero
                 # this is the population variance
-                temp = variance
-                variance = \
-                    ( (normal_ping_count - 1) * previous_variance + \
-                      (zrtt - previous_mean_rtt) * \
-                      (zrtt - mean_rtt)
+                temp = current['variance']
+                current['variance'] = \
+                    ( (normal_ping_count - 1) * previous['variance'] + \
+                      (zrtt - previous['mean']) * \
+                      (zrtt - current['mean'])
                     ) / normal_ping_count
-                previous_variance = temp
+                previous['variance'] = temp
 
             elif kind in down_classifications:
                 # Handle network state stuff
@@ -463,11 +366,11 @@ def main():
                     print "Up:   " + str(up_start) +\
                             " - " + str(up_end) + \
                             " [ " + str(up_end - up_start - 1) + " ]"
-                    if reference_time != "unknown":
-                        print "   reference_time: " +\
-                            str(reference_time)
+                    if current['time'] != "unknown":
+                        print "   current['time']: " +\
+                            str(current['time'])
                         print "   plus (~seconds): " +\
-                            str(sequence_number - reference_sequence)
+                            str(sequence_number - current['sequence'])
                 else:
                     down_end = sequence_number
                 network_state = "Down"
@@ -490,11 +393,10 @@ def main():
     print "sequence_number: " + str(sequence_number)
     print "sequence_offset: " + str(sequence_offset)
     print "normal_ping_count: " + str(normal_ping_count)
-    print "Mean: " + str(mean_rtt)
+    print "Mean: " + str(current['mean'])
     print "Mean RTT (two ways): " + str(rtt_stats.get_mean())
-    print "Variance: " + str(variance)
+    print "Variance: " + str(current['variance'])
     print "Variance RTT (two ways): " + str(rtt_stats.get_variance())
-    print "Standard Deviation: " + str(sqrt(variance))
     print "rtt_stats: " + str(rtt_stats)
 
     checksum = linecount

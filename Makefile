@@ -21,6 +21,7 @@ SOURCE = \
 	Makefile \
 	pinger.py \
 	README.md \
+	SequenceStats.py \
 	TimeStamp.py
 
 # various ping logs
