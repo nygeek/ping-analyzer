@@ -28,9 +28,13 @@ def main():
     stream_tag = "pid-" + str(os.getpid())
 
     parser = argparse.ArgumentParser(\
-            description='Run pings from a configuration file.')
+            description='Filter a stream, inserting periodic timestamps.')
     parser.add_argument('-c', nargs='?',\
             default='./pinger.cfg', help="configuration file name")
+    parser.add_argument('--notag', action='store_true',\
+            help="do not insert tags at all")
+    parser.add_argument('-s', nargs='?',\
+            default=64, help="records to skip between timestamps")
     parser.add_argument('-t', nargs='?',\
             default=stream_tag, help="tag this stream")
     parser.add_argument('-D', type=int, nargs='?',\
@@ -38,26 +42,25 @@ def main():
     args = parser.parse_args()
     stream_tag = args.t
 
+    if args.notag:
+        print "# insert_timestamps.py: no tags"
+    else:
+        print "# insert_timestamps.py: tag: " + str(stream_tag)
+
     config = ConfigParser.ConfigParser()
     config_file_path = os.path.expanduser(args.c)
 
     print "# insert_timestamps.py: config_file_path: " + config_file_path
     config.read(config_file_path)
 
-    # host_list is used by pinger.py to set up the concurrent streams
+    if args.s:
+        timer_interval = int(args.s)
+    else:
+        try:
+            timer_interval = config.getint('pinger', 'timer_interval')
+        except ConfigParser.NoOptionError:
+            timer_interval = 10
 
-    # try:
-    #     hosts = config.get('destinations', 'hosts')
-    # except ConfigParser.NoOptionError:
-    #     hosts = localhost
-    # host_list = hosts.split(", ")
-
-    try:
-        timer_interval = config.getint('pinger', 'timer_interval')
-    except ConfigParser.NoOptionError:
-        timer_interval = 10
-
-    # print "# insert_timestamps.py: host_list: " + str(host_list)
     print "# insert_timestamps.py: timer_interval: " + str(timer_interval)
     
     # now we stream STDIN to STDOUT, inserting a timestamp comment
@@ -69,7 +72,11 @@ def main():
             if not linenumber % timer_interval:
                 timestamp = datetime.datetime.isoformat(\
                     datetime.datetime.today())
-                print "# timestamp: " + stream_tag + ": " + str(timestamp)
+                if args.notag:
+                    print "# timestamp: " + str(timestamp)
+                else:
+                    print "# timestamp: " + stream_tag + ": " +\
+                            str(timestamp)
             print sys.stdin.readline().strip()
             sys.stdout.flush()
             linenumber += 1
