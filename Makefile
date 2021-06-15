@@ -3,6 +3,7 @@
 #
 
 # 2021-06-15 - change ${FORCE} to .PHONY:
+# And get rid of rsync to update other donner.lan hosts.
 
 DIRS = "."
 DIRPATH="~/projects/p/pinger"
