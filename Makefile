@@ -10,7 +10,8 @@ BUILD_VERSION := $(shell cat version.txt)
 HOSTS = waffle pancake
 PUSH_FILES = $(HOSTS:%=.%_push)
 
-help: ${FORCE}
+.PHONY: help
+help:
 	cat Makefile
 
 SOURCE = \
@@ -37,21 +38,25 @@ FILES = \
 	pinger.cfg \
 	lqtest.txt
 
-stuff.tar: ${FORCE}
+.PHONY: stuff.tar
+stuff.tar:
 	tar -cvf stuff.tar ${FILES}
 
 DATA = data/panix.com.ping.log
 
 CRUNCHER = analyze_pings.py
 
-test: ${FORCE}
+.PHONY: test
+test:
 	head -100000 ${DATA} > ${HOME}/tmp/test.txt
 	python ${CRUNCHER} -v ${BUILD_VERSION} -f ${HOME}/tmp/test.txt
 
-run: ${FORCE}
+.PHONY: run
+run:
 	python ${CRUNCHER} -v ${BUILD_VERSION} -f ${DATA}
 
-lqtest: ${FORCE}
+.PHONY: lqtest
+lqtest:
 	python LineQueue.py
 
 # Quality management
@@ -64,7 +69,8 @@ pylint: ${SOURCE}
 diff: .gitattributes
 	git diff
 
-status: ${FORCE}
+.PHONY: status
+status:
 	git status
 
 # this brings the remote copy into sync with the local one
@@ -77,7 +83,8 @@ commit: .gitattributes
 pull: .gitattributes
 	git pull origin master
 
-version.txt: ${FORCE}
+.PHONY: version.txt
+version.txt:
 	git describe --abbrev=4 --dirty --always --tags > version.txt
 
 log: .gitattributes
@@ -91,5 +98,3 @@ push: ${PUSH_FILES}
 .%_push:
 	rsync -az --exclude=".git*" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
 	touch $@
-
-FORCE: 
