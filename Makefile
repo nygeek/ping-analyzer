@@ -2,6 +2,8 @@
 # analyze_pings development sandbox
 #
 
+# 2021-06-15 - change ${FORCE} to .PHONY:
+
 DIRS = "."
 DIRPATH="~/projects/p/pinger"
 
