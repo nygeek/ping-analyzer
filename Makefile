@@ -91,12 +91,3 @@ version.txt:
 
 log: .gitattributes
 	git log --pretty=oneline
-
-# Distribution to other hosts
-
-push: ${PUSH_FILES}
-	rm ${PUSH_FILES}
-
-.%_push:
-	rsync -az --exclude=".git*" --exclude=".*_push" -e ssh ${DIRS} $*:${DIRPATH}
-	touch $@
